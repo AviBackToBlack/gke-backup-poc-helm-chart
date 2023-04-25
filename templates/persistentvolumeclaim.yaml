@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "gke-backup-poc.fullname" . }}-claim
+  namespace: {{ .Release.Namespace }}
+spec:
+  storageClassName: {{ include "gke-backup-poc.fullname" . }}-storage
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Mi

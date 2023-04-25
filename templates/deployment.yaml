@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gke-backup-poc.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "gke-backup-poc.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "gke-backup-poc.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "gke-backup-poc.selectorLabels" . | nindent 8 }}
+    spec:
+      volumes:
+        - name: {{ include "gke-backup-poc.fullname" . }}-volume
+          persistentVolumeClaim:
+            claimName: {{ include "gke-backup-poc.fullname" . }}-claim
+        - name: {{ include "gke-backup-poc.fullname" . }}-configmap
+          configMap:
+            name: {{ include "gke-backup-poc.fullname" . }}-configmap
+      serviceAccountName: {{ include "gke-backup-poc.serviceAccountName" . }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          volumeMounts:
+            - mountPath: "/usr/share/nginx/html"
+              name: {{ include "gke-backup-poc.fullname" . }}-volume
+      initContainers:
+        - name: {{ include "gke-backup-poc.fullname" . }}-init
+          image: busybox
+          command: [ "/bin/sh", "-c", "cp /mnt/{{ include "gke-backup-poc.fullname" . }}-configmap/index.html /usr/share/nginx/html" ]
+          volumeMounts:
+            - name: {{ include "gke-backup-poc.fullname" . }}-volume
+              mountPath: "/usr/share/nginx/html"
+            - name: {{ include "gke-backup-poc.fullname" . }}-configmap
+              mountPath: "/mnt/{{ include "gke-backup-poc.fullname" . }}-configmap"
